@@ -30,7 +30,7 @@ Assumptions
 
 Usage
 -----
-    python3 adsb_preamble_finder.py adsb_raw_4000000Hz_1783781711_mag_char --rate 4000000
+    python3 adsb_preamble_finder.py /home/bri/workspace/mode_s_decode/controlpathsdotcom/adalmpluto_sdr/adsb_raw_4000000Hz_1783781677_mag_char --rate 4000000
 
     python3 adsb_preamble_finder.py capture.bin --rate 2000000 \\
         --dtype float32 --threshold 2.0 --max-hits 20
@@ -39,6 +39,8 @@ Usage
 import argparse
 import numpy as np
 from pyModeS import decode
+import pandas as pd
+from pathlib import Path
 
 def find_preambles(mag, rate=2_000_000, threshold_ratio=2.0, min_amplitude=0.0):
     """
@@ -205,6 +207,7 @@ def mode_s_crc(bits):
 
 
 def main():
+    flight_dict = [] 
     ap = argparse.ArgumentParser(description="Find ADS-B preambles in a Pluto SDR magnitude capture.")
     ap.add_argument("infile", help="path to binary magnitude file")
     ap.add_argument("--rate", type=float, default=2_000_000,
@@ -224,6 +227,8 @@ def main():
     print(f"Loaded {len(mag):,} samples ({len(mag) / args.rate * 1000:.2f} ms) "
           f"from {args.infile}")
 
+    input_path = Path(args.infile)
+    filename = input_path.stem 
     hits = find_preambles(
         mag,
         rate=args.rate,
@@ -239,7 +244,7 @@ def main():
 
     print(f"Found {len(hits)} candidate preamble(s).")
     n_valid = 0
-    for h in hits[: args.max_hits]:
+    for h in hits[:]:
         t_ms = h / args.rate * 1000
         msg = demod_mode_s(mag, h, rate=args.rate)
         if msg is None:
@@ -252,8 +257,9 @@ def main():
         # XOR the CRC field with an address/parity, so a nonzero checksum
         # there doesn't necessarily mean a bad message -- only DF17/18 get
         # a hard pass/fail here.
-        if msg["df"] in (17, 18):
-            valid = checksum == 0
+        if msg["df"] in (17, 18, 20):
+            if msg["df"] in (17, 18):
+                valid = checksum == 0
             result = decode(msg["hex"])
             print(result)
         else:
@@ -263,12 +269,17 @@ def main():
         if valid:
             n_valid += 1
 
-        print(f"  sample {h:>10}  |  t = {t_ms:.4f} ms  |  DF={msg['df']:>2}  "
-              f"len={msg['length_bits']:>3} bits  |  CRC={status}  |  {msg['hex']}")
+        # print(f"  sample {h:>10}  |  t = {t_ms:.4f} ms  |  DF={msg['df']:>2}  "
+        #       f"len={msg['length_bits']:>3} bits  |  CRC={status}  |  {msg['hex']}")
+        result = decode(msg["hex"])
+        flight_dict.append(result)
+    
+    df = pd.DataFrame(flight_dict)
+    df.to_csv(f'ADS_B_data_{filename}.csv')
 
-    if len(hits) > args.max_hits:
-        print(f"  ... and {len(hits) - args.max_hits} more")
-    print(f"{n_valid} message(s) passed CRC (DF17/18 only).")
+    # if len(hits) > args.max_hits:
+    #     print(f"  ... and {len(hits) - args.max_hits} more")
+    # print(f"{n_valid} message(s) passed CRC (DF17/18 only).")
 
 
 if __name__ == "__main__":
