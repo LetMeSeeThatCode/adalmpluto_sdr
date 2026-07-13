@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow_graph>
+  <timestamp>generated</timestamp>
+
+  <block>
+    <key>iio_fmcomms2_source_fc32</key>
+    <param><key>uri</key><value>ip:pluto.local</value></param>
+    <param><key>frequency</key><value>1090000000</value></param>
+    <param><key>samplerate</key><value>8000000</value></param>
+    <param><key>rf_port_select</key><value>A_BALANCED</value></param>
+    <param><key>gain_mode</key><value>manual</value></param>
+    <param><key>gain</key><value>40</value></param>
+  </block>
+
+  <block>
+    <key>blocks_complex_to_mag_squared</key>
+  </block>
+
+  <block>
+    <key>blocks_multiply_const_ff</key>
+    <param><key>const</key><value>10</value></param>
+  </block>
+
+  <block>
+    <key>blocks_peak_detector2_fb</key>
+    <param><key>threshold_factor_rise</key><value>0.4</value></param>
+    <param><key>threshold_factor_fall</key><value>0.2</value></param>
+    <param><key>look_ahead</key><value>1</value></param>
+    <param><key>alpha</key><value>0.001</value></param>
+  </block>
+
+  <block>
+    <key>qtgui_time_sink_f</key>
+    <param><key>name</key><value>Mode S Detection</value></param>
+    <param><key>samp_rate</key><value>8000000</value></param>
+    <param><key>size</key><value>20000</value></param>
+    <param><key>num_inputs</key><value>2</value></param>
+  </block>
+
+  <block>
+    <key>qtgui_freq_sink_c</key>
+    <param><key>center_freq</key><value>1090000000</value></param>
+    <param><key>samp_rate</key><value>8000000</value></param>
+    <param><key>size</key><value>1024</value></param>
+  </block>
+
+  <!-- CONNECTIONS -->
+
+  <connection>
+    <source_block_id>iio_fmcomms2_source_fc32_0</source_block_id>
+    <sink_block_id>qtgui_freq_sink_c_0</sink_block_id>
+  </connection>
+
+  <connection>
+    <source_block_id>iio_fmcomms2_source_fc32_0</source_block_id>
+    <sink_block_id>blocks_complex_to_mag_squared_0</sink_block_id>
+  </connection>
+
+  <connection>
+    <source_block_id>blocks_complex_to_mag_squared_0</source_block_id>
+    <sink_block_id>qtgui_time_sink_f_0</sink_block_id>
+  </connection>
+
+  <connection>
+    <source_block_id>blocks_complex_to_mag_squared_0</source_block_id>
+    <sink_block_id>blocks_multiply_const_ff_0</sink_block_id>
+  </connection>
+
+  <connection>
+    <source_block_id>blocks_multiply_const_ff_0</source_block_id>
+    <sink_block_id>blocks_peak_detector2_fb_0</sink_block_id>
+  </connection>
+
+  <connection>
+    <source_block_id>blocks_peak_detector2_fb_0</source_block_id>
+    <sink_block_id>qtgui_time_sink_f_0</sink_block_id>
+  </connection>
+
+</flow_graph>

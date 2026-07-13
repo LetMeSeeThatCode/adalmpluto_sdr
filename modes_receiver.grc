@@ -1,0 +1,1134 @@
+options:
+  parameters:
+    author: bri
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: modes_receiver
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: Not titled yet
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: center_freq
+  id: variable
+  parameters:
+    comment: ''
+    value: '1090000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [312, 16.0]
+    rotation: 0
+    state: enabled
+- name: filename
+  id: variable
+  parameters:
+    comment: ''
+    value: '''/home/bri/workspace/mode_s_decode/controlpathsdotcom/raw_adsb_files/adsb_raw_''+samp_rate_string+''Hz_''+timestamp+''_mag_char'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [840, 16.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '4000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 12]
+    rotation: 0
+    state: enabled
+- name: samp_rate_string
+  id: variable
+  parameters:
+    comment: ''
+    value: str(int(samp_rate))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [464, 8.0]
+    rotation: 0
+    state: enabled
+- name: timestamp
+  id: variable
+  parameters:
+    comment: ''
+    value: str(int(time()))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 16.0]
+    rotation: 0
+    state: enabled
+- name: blocks_complex_to_mag_0
+  id: blocks_complex_to_mag
+  parameters:
+    affinity: ''
+    alias: mag
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [472, 456.0]
+    rotation: 0
+    state: enabled
+- name: blocks_file_sink_0
+  id: blocks_file_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    append: 'False'
+    comment: ''
+    file: filename
+    type: float
+    unbuffered: 'False'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 592.0]
+    rotation: 0
+    state: enabled
+- name: blocks_float_to_char_0
+  id: blocks_float_to_char
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: '1'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [952, 608.0]
+    rotation: 0
+    state: disabled
+- name: blocks_null_sink_0
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: ''
+    num_inputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [728, 752.0]
+    rotation: 0
+    state: disabled
+- name: blocks_null_source_0
+  id: blocks_null_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_source: '[[0,],]'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_outputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [368, 752.0]
+    rotation: 0
+    state: disabled
+- name: blocks_threshold_ff_0
+  id: blocks_threshold_ff
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    high: '0.017'
+    init: '0'
+    low: '0.01'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [648, 312.0]
+    rotation: 0
+    state: disabled
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n#\n# ADS-B / Mode-S\
+      \ receiver for PlutoSDR\n# GNU Radio 3.10 \u2014 embedded Python block handles\
+      \ all signal processing:\n#   preamble detection \u2192 bit extraction \u2192\
+      \ CRC check \u2192 hex output\n#\n# Dependencies:\n#   pip install pyModeS watchdog\
+      \ rich\n#\n# Output: one hex string per valid DF17/18 frame appended to OUTPUT_FILE\n\
+      # Run decoder.py in a second terminal to display traffic.\n\nfrom PyQt5 import\
+      \ Qt\nfrom gnuradio import qtgui\nfrom gnuradio import blocks\nfrom gnuradio\
+      \ import filter\nfrom gnuradio.filter import firdes\nfrom gnuradio import gr\n\
+      from gnuradio.fft import window\nimport sys\nimport signal\nfrom argparse import\
+      \ ArgumentParser\nfrom gnuradio.eng_arg import eng_float, intx\nfrom gnuradio\
+      \ import eng_notation\nfrom gnuradio import iio\nimport numpy as np\nimport\
+      \ sip\n\n# \u2500\u2500 output file watched by decoder.py \u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nOUTPUT_FILE\
+      \ = \"/home/bri/workspace/mode_s_decode/controlpathsdotcom/adsb_bursts.txt\"\
+      \n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \n#  Embedded Python Block \u2014 ADS-B frame extractor\n#\n#  Input:  float\
+      \ stream \u2014 thresholded OOK signal (0.0 / 1.0) at SAMP_RATE\n#  Output:\
+      \ passthrough of input (connect to time sink for monitoring)\n#\n#  Signal timing\
+      \ at 5 Msps / 1 Mbps:\n#    samples_per_bit  = 5\n#    preamble         = 8\
+      \ \xB5s  \u2192 8 chips \xD7 5 samples = 40 samples\n#    DF17/18 payload  =\
+      \ 112 bits \u2192 560 samples\n#    total frame      = 600 samples\n#\n#  Preamble\
+      \ chip pattern (half-bit level, 1 sample per chip):\n#    1 1 0 0 1 0 1 0 0\
+      \ 0 0 0 0 0 0 0   (16 chips = 8 \xB5s at 2 chips/\xB5s)\n#  Sampled at 5 Msps\
+      \ \u2192 each chip = 2.5 samples, so we look at the\n#  centre sample of each\
+      \ half-bit window.\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\n\nclass adsb_frame_extractor(gr.sync_block):\n    \"\"\"\
+      \n    Detects ADS-B (DF17/18) frames in a thresholded OOK float stream.\n  \
+      \  Validates CRC and writes hex strings to OUTPUT_FILE.\n    \"\"\"\n\n    SAMP_RATE\
+      \       = 5_000_000\n    BIT_RATE        = 1_000_000\n    SPB             =\
+      \ SAMP_RATE // BIT_RATE   # samples per bit = 5\n    # Preamble: 8 \xB5s of\
+      \ known chip pattern before the data field.\n    # At 5 Msps each bit = 5 samples.\
+      \  PPM encoding means each bit is\n    # represented by a pulse in the first\
+      \ or second half.\n    # We detect the preamble by checking the *centre* of\
+      \ each 5-sample bit.\n    PREAMBLE_BITS   = [1, 0, 1, 0, 0, 0, 0, 0]   # 8-bit\
+      \ preamble word\n    PREAMBLE_LEN    = len(PREAMBLE_BITS)            # 8 bits\n\
+      \    PAYLOAD_BITS    = 112                            # DF17/18 long squitter\n\
+      \    FRAME_SAMPLES   = (PREAMBLE_LEN + PAYLOAD_BITS) * SPB   # 600 samples\n\
+      \n    def __init__(self, output_file=OUTPUT_FILE):\n        gr.sync_block.__init__(\n\
+      \            self,\n            name=\"ADS-B Frame Extractor\",\n          \
+      \  in_sig=[np.float32],\n            out_sig=[np.float32],\n        )\n    \
+      \    self._output_file = output_file\n        self._buf = np.zeros(self.FRAME_SAMPLES\
+      \ * 4, dtype=np.float32)\n        self._buf_len = 0\n        self._fh = open(output_file,\
+      \ \"a\", buffering=1)   # line-buffered\n\n    # \u2500\u2500 CRC-24 as specified\
+      \ in ICAO Annex 10 \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\n    _GENERATOR = 0xFFF409\n\n    @staticmethod\n\
+      \    def _crc24(data_bytes):\n        crc = 0\n        for byte in data_bytes:\n\
+      \            for i in range(7, -1, -1):\n                bit = (byte >> i) &\
+      \ 1\n                if (crc >> 23) & 1:\n                    crc = ((crc <<\
+      \ 1) | bit) ^ adsb_frame_extractor._GENERATOR\n                else:\n     \
+      \               crc = (crc << 1) | bit\n                crc &= 0xFFFFFF\n  \
+      \      return crc\n\n    # \u2500\u2500 sample the centre of each bit period\
+      \ \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\n    def _sample_bits(self, samples, count):\n        \"\"\
+      \"Return `count` bits sampled from the centre of each SPB window.\"\"\"\n  \
+      \      centre = self.SPB // 2   # sample index 2 inside each 5-sample bit\n\
+      \        bits = []\n        for i in range(count):\n            bits.append(1\
+      \ if samples[i * self.SPB + centre] > 0.5 else 0)\n        return bits\n\n \
+      \   # \u2500\u2500 convert bit list to hex string \u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\n    @staticmethod\n    def _bits_to_hex(bits):\n\
+      \        n = len(bits)\n        assert n % 8 == 0\n        out = []\n      \
+      \  for i in range(0, n, 8):\n            byte = 0\n            for b in bits[i:i+8]:\n\
+      \                byte = (byte << 1) | b\n            out.append(byte)\n    \
+      \    return bytes(out).hex().upper()\n\n    # \u2500\u2500 GNU Radio work()\
+      \ \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    def work(self,\
+      \ input_items, output_items):\n        inp = input_items[0]\n        n   = len(inp)\n\
+      \n        # Accumulate into rolling buffer\n        needed = self.FRAME_SAMPLES\
+      \ * 2\n        self._buf = np.concatenate([self._buf[-needed:], inp])\n    \
+      \    buf = self._buf\n        L   = len(buf)\n\n        pos = 0\n        while\
+      \ pos + self.FRAME_SAMPLES <= L:\n            # Quick gate: first sample must\
+      \ be 1\n            if buf[pos] < 0.5:\n                pos += 1\n         \
+      \       continue\n\n            # Check preamble bits\n            preamble_ok\
+      \ = True\n            for k, expected in enumerate(self.PREAMBLE_BITS):\n  \
+      \              centre = k * self.SPB + self.SPB // 2\n                got =\
+      \ 1 if buf[pos + centre] > 0.5 else 0\n                if got != expected:\n\
+      \                    preamble_ok = False\n                    break\n\n    \
+      \        if not preamble_ok:\n                pos += 1\n                continue\n\
+      \n            # Extract 112 payload bits that follow the 8-bit preamble\n  \
+      \          payload_start = pos + self.PREAMBLE_LEN * self.SPB\n            if\
+      \ payload_start + self.PAYLOAD_BITS * self.SPB > L:\n                break \
+      \  # not enough data yet\n\n            payload_bits = self._sample_bits(\n\
+      \                buf[payload_start:], self.PAYLOAD_BITS\n            )\n\n \
+      \           # Convert to bytes for CRC check\n            hex_str = self._bits_to_hex(payload_bits)\n\
+      \            raw     = bytes.fromhex(hex_str)\n\n            # Downlink Format\
+      \ lives in the top 5 bits of byte 0\n            df = raw[0] >> 3\n\n      \
+      \      if df in (17, 18):\n                # CRC covers bytes 0..13; last 3\
+      \ bytes ARE the parity\n                msg_bytes = raw[:11]\n             \
+      \   parity    = raw[11:14]\n                computed  = self._crc24(msg_bytes)\n\
+      \                received  = int.from_bytes(parity, \"big\")\n\n           \
+      \     if computed == received:\n                    self._fh.write(hex_str +\
+      \ \"\\n\")\n\n            # Advance past this frame to avoid overlapping detections\n\
+      \            pos += self.PAYLOAD_BITS * self.SPB\n\n        output_items[0][:n]\
+      \ = inp\n        return n\n\n\n# \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\n#  Top-level GNU Radio flowgraph\n# \u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nclass modes_receiver(gr.top_block,\
+      \ Qt.QWidget):\n\n    def __init__(self):\n        gr.top_block.__init__(self,\
+      \ \"ADS-B Receiver\", catch_exceptions=True)\n        Qt.QWidget.__init__(self)\n\
+      \        self.setWindowTitle(\"ADS-B Receiver \u2014 1090 MHz\")\n        qtgui.util.check_set_qss()\n\
+      \        try:\n            self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))\n\
+      \        except BaseException as exc:\n            print(f\"Qt GUI: Could not\
+      \ set Icon: {str(exc)}\", file=sys.stderr)\n\n        self.top_scroll_layout\
+      \ = Qt.QVBoxLayout()\n        self.setLayout(self.top_scroll_layout)\n     \
+      \   self.top_scroll = Qt.QScrollArea()\n        self.top_scroll.setFrameStyle(Qt.QFrame.NoFrame)\n\
+      \        self.top_scroll_layout.addWidget(self.top_scroll)\n        self.top_scroll.setWidgetResizable(True)\n\
+      \        self.top_widget = Qt.QWidget()\n        self.top_scroll.setWidget(self.top_widget)\n\
+      \        self.top_layout = Qt.QVBoxLayout(self.top_widget)\n        self.top_grid_layout\
+      \ = Qt.QGridLayout()\n        self.top_layout.addLayout(self.top_grid_layout)\n\
+      \n        self.settings = Qt.QSettings(\"GNU Radio\", \"modes_receiver\")\n\
+      \        try:\n            geometry = self.settings.value(\"geometry\")\n  \
+      \          if geometry:\n                self.restoreGeometry(geometry)\n  \
+      \      except BaseException as exc:\n            print(f\"Qt GUI: Could not\
+      \ restore geometry: {str(exc)}\", file=sys.stderr)\n\n        # \u2500\u2500\
+      \ Variables \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\n        #\n        # 5 Msps is critical \u2014 the Python block's\
+      \ timing constants assume it.\n        # Do NOT change samp_rate without also\
+      \ updating SPB in the block above.\n        #\n        self.samp_rate   = samp_rate\
+      \   = 5_000_000\n        self.center_freq = center_freq = 1_090_000_000\n\n\
+      \        # \u2500\u2500 PlutoSDR source \u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\n        self.iio_pluto_source_0 = iio.fmcomms2_source_fc32(\n      \
+      \      'ip:pluto.local' if 'ip:pluto.local' else iio.get_pluto_uri(),\n    \
+      \        [True, True], 64000\n        )\n        self.iio_pluto_source_0.set_len_tag_key('packet_len')\n\
+      \        self.iio_pluto_source_0.set_frequency(center_freq)\n        self.iio_pluto_source_0.set_samplerate(samp_rate)\n\
+      \        self.iio_pluto_source_0.set_gain_mode(0, 'manual')\n        self.iio_pluto_source_0.set_gain(0,\
+      \ 30)       # tune 20\u201340 dB to taste\n        self.iio_pluto_source_0.set_quadrature(True)\n\
+      \        self.iio_pluto_source_0.set_rfdc(True)\n        self.iio_pluto_source_0.set_bbdc(True)\n\
+      \        self.iio_pluto_source_0.set_filter_params('Auto', '', 0, 0)\n\n   \
+      \     # \u2500\u2500 IQ \u2192 envelope \u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\n        # complex_to_mag gives the true RF envelope (sqrt\
+      \ of power).\n        # Do NOT use complex_to_mag_squared \u2014 it distorts\
+      \ pulse shapes and\n        # makes threshold tuning very environment-sensitive.\n\
+      \        self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1)\n\n       \
+      \ # \u2500\u2500 Low-pass filter \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n \
+      \       # Cuts off above ~1.5 MHz to reject adjacent interference while\n  \
+      \      # keeping ADS-B pulse edges (1 Mbps \u2192 1 MHz Nyquist) intact.\n \
+      \       # Transition band 1.5\u20132.0 MHz keeps group delay low.\n        self.low_pass_filter_0\
+      \ = filter.fir_filter_fff(\n            1,                          # decimation\
+      \ = 1 (keep 5 Msps)\n            firdes.low_pass(\n                1,      \
+      \                # gain\n                samp_rate,              # sampling\
+      \ rate\n                1_500_000,              # cutoff Hz\n              \
+      \  500_000,                # transition width Hz\n                window.WIN_HAMMING,\n\
+      \                6.76\n            )\n        )\n\n        # \u2500\u2500 Threshold\
+      \ \u2192 binary OOK \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\n        # Low threshold (hysteresis lower edge):  adjust\
+      \ if noise triggers\n        # High threshold (hysteresis upper edge): adjust\
+      \ if signal clipped\n        # Start here and tune while watching the time sink:\n\
+      \        #   - If you see no pulses:  lower both values\n        #   - If noise\
+      \ fills gaps:   raise the low value\n        # Rule of thumb: high \u2248 3\u2013\
+      5\xD7 noise floor; low \u2248 0.5\xD7 high.\n        self.blocks_threshold_ff_0\
+      \ = blocks.threshold_ff(0.01, 0.03, 0)\n\n        # \u2500\u2500 ADS-B frame\
+      \ extractor (embedded Python block) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n        self.adsb_extractor\
+      \ = adsb_frame_extractor(OUTPUT_FILE)\n\n        # \u2500\u2500 Qt sinks \u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \n        self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(\n        \
+      \    1024, window.WIN_BLACKMAN_hARRIS,\n            center_freq, samp_rate,\
+      \ \"\", 1, None\n        )\n        self.qtgui_waterfall_sink_x_0.set_update_time(0.10)\n\
+      \        self.qtgui_waterfall_sink_x_0.enable_grid(False)\n        self.qtgui_waterfall_sink_x_0.enable_axis_labels(True)\n\
+      \        self.qtgui_waterfall_sink_x_0.set_intensity_range(-140, 10)\n     \
+      \   self._qtgui_waterfall_sink_x_0_win = sip.wrapinstance(\n            self.qtgui_waterfall_sink_x_0.qwidget(),\
+      \ Qt.QWidget)\n        self.top_layout.addWidget(self._qtgui_waterfall_sink_x_0_win)\n\
+      \n        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(\n            1024, window.WIN_BLACKMAN_hARRIS,\n\
+      \            center_freq, samp_rate, \"\", 1, None\n        )\n        self.qtgui_freq_sink_x_0.set_update_time(0.10)\n\
+      \        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)\n        self.qtgui_freq_sink_x_0.set_y_label('Relative\
+      \ Gain', 'dB')\n        self.qtgui_freq_sink_x_0.enable_autoscale(False)\n \
+      \       self.qtgui_freq_sink_x_0.enable_grid(False)\n        self.qtgui_freq_sink_x_0.set_fft_average(1.0)\n\
+      \        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(\n            self.qtgui_freq_sink_x_0.qwidget(),\
+      \ Qt.QWidget)\n        self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)\n\
+      \n        # Time sink shows raw envelope (blue) and thresholded OOK (red)\n\
+      \        self.qtgui_time_sink_x_0_0 = qtgui.time_sink_f(\n            40000,\
+      \ samp_rate, 'OOK Decoder', 2, None\n        )\n        self.qtgui_time_sink_x_0_0.set_update_time(0.10)\n\
+      \        self.qtgui_time_sink_x_0_0.set_y_axis(-0.1, 1.5)\n        self.qtgui_time_sink_x_0_0.set_y_label('Amplitude',\
+      \ \"\")\n        self.qtgui_time_sink_x_0_0.enable_tags(True)\n        self.qtgui_time_sink_x_0_0.set_trigger_mode(\n\
+      \            qtgui.TRIG_MODE_FREE, qtgui.TRIG_SLOPE_POS, 0.0, 0, 0, \"\")\n\
+      \        self.qtgui_time_sink_x_0_0.enable_autoscale(False)\n        self.qtgui_time_sink_x_0_0.enable_grid(True)\n\
+      \n        labels = ['Envelope (post-LPF)', 'OOK binary',\n                 \
+      \ '', '', '', '', '', '', '', '']\n        colors = ['blue', 'red', 'green',\
+      \ 'black', 'cyan',\n                  'magenta', 'yellow', 'dark red', 'dark\
+      \ green', 'dark blue']\n        for i in range(2):\n            self.qtgui_time_sink_x_0_0.set_line_label(i,\
+      \ labels[i])\n            self.qtgui_time_sink_x_0_0.set_line_color(i, colors[i])\n\
+      \            self.qtgui_time_sink_x_0_0.set_line_width(i, 1)\n            self.qtgui_time_sink_x_0_0.set_line_alpha(i,\
+      \ 1.0)\n\n        self._qtgui_time_sink_x_0_0_win = sip.wrapinstance(\n    \
+      \        self.qtgui_time_sink_x_0_0.qwidget(), Qt.QWidget)\n        self.top_layout.addWidget(self._qtgui_time_sink_x_0_0_win)\n\
+      \n        # \u2500\u2500 Connections \u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\
+      \u2500\u2500\u2500\u2500\u2500\n        #\n        #  PlutoSDR \u2500\u2500\u25BA\
+      \ complex_to_mag \u2500\u2500\u25BA LPF \u2500\u2500\u25BA threshold \u2500\u2500\
+      \u25BA extractor\n        #         \u2502                  \u2502         \
+      \           \u2502\n        #         \u25BC                  \u25BC       \
+      \             \u25BC\n        #    freq sink        time sink [0]          time\
+      \ sink [1]\n        #    waterfall\n        #\n        self.connect((self.iio_pluto_source_0,\
+      \    0), (self.blocks_complex_to_mag_0,  0))\n        self.connect((self.iio_pluto_source_0,\
+      \    0), (self.qtgui_freq_sink_x_0,      0))\n        self.connect((self.iio_pluto_source_0,\
+      \    0), (self.qtgui_waterfall_sink_x_0, 0))\n        self.connect((self.blocks_complex_to_mag_0,\
+      \ 0), (self.low_pass_filter_0,      0))\n        self.connect((self.low_pass_filter_0,\
+      \     0), (self.qtgui_time_sink_x_0_0,   0))\n        self.connect((self.low_pass_filter_0,\
+      \     0), (self.blocks_threshold_ff_0,    0))\n        self.connect((self.blocks_threshold_ff_0,\
+      \ 0), (self.adsb_extractor,           0))\n        self.connect((self.adsb_extractor,\
+      \        0), (self.qtgui_time_sink_x_0_0,   1))\n\n    def closeEvent(self,\
+      \ event):\n        self.settings = Qt.QSettings(\"GNU Radio\", \"modes_receiver\"\
+      )\n        self.settings.setValue(\"geometry\", self.saveGeometry())\n     \
+      \   self.stop()\n        self.wait()\n        event.accept()\n\n    def get_samp_rate(self):\n\
+      \        return self.samp_rate\n\n    def set_samp_rate(self, samp_rate):\n\
+      \        self.samp_rate = samp_rate\n        self.iio_pluto_source_0.set_samplerate(self.samp_rate)\n\
+      \        self.low_pass_filter_0.set_taps(firdes.low_pass(\n            1, self.samp_rate,\
+      \ 1_500_000, 500_000, window.WIN_HAMMING, 6.76))\n        self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq,\
+      \ self.samp_rate)\n        self.qtgui_time_sink_x_0_0.set_samp_rate(self.samp_rate)\n\
+      \        self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq,\
+      \ self.samp_rate)\n\n    def get_center_freq(self):\n        return self.center_freq\n\
+      \n    def set_center_freq(self, center_freq):\n        self.center_freq = center_freq\n\
+      \        self.iio_pluto_source_0.set_frequency(self.center_freq)\n        self.qtgui_freq_sink_x_0.set_frequency_range(self.center_freq,\
+      \ self.samp_rate)\n        self.qtgui_waterfall_sink_x_0.set_frequency_range(self.center_freq,\
+      \ self.samp_rate)\n\n\ndef main(top_block_cls=modes_receiver, options=None):\n\
+      \    qapp = Qt.QApplication(sys.argv)\n    tb = top_block_cls()\n    tb.start()\n\
+      \    tb.show()\n\n    def sig_handler(sig=None, frame=None):\n        tb.stop()\n\
+      \        tb.wait()\n        Qt.QApplication.quit()\n\n    signal.signal(signal.SIGINT,\
+      \  sig_handler)\n    signal.signal(signal.SIGTERM, sig_handler)\n\n    timer\
+      \ = Qt.QTimer()\n    timer.start(500)\n    timer.timeout.connect(lambda: None)\n\
+      \    qapp.exec_()\n\n\nif __name__ == '__main__':\n    main()"
+    affinity: ''
+    alias: ADS-B Frame
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    output_file: '"/home/bri/workspace/mode_s_decode/controlpathsdotcom/adsb_bursts.txt"'
+  states:
+    _io_cache: ('ADS-B Frame Extractor', 'adsb_frame_extractor', [('output_file',
+      "'/home/bri/workspace/mode_s_decode/controlpathsdotcom/adsb_bursts.txt'")],
+      [('0', 'float', 1)], [('0', 'float', 1)], '\n    Detects ADS-B (DF17/18) frames
+      in a thresholded OOK float stream.\n    Validates CRC and writes hex strings
+      to OUTPUT_FILE.\n    ', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1264, 24.0]
+    rotation: 0
+    state: disabled
+- name: epy_block_1
+  id: epy_block
+  parameters:
+    _source_code: "import numpy as np\nimport pmt\nfrom gnuradio import gr\n\nclass\
+      \ adsb_extractor(gr.sync_block):\n    def __init__(self):\n        gr.sync_block.__init__(self,\n\
+      \            name=\"ADSB Bit Extractor\",\n            in_sig=[np.dtype(np.uint8)],\n\
+      \            out_sig=[np.dtype(np.uint8)])\n        self.capturing = False\n\
+      \        self.buffer = []\n\n    def work(self, input_items, output_items):\n\
+      \        in0 = input_items[0]\n        out = output_items[0]\n        \n   \
+      \     # Check for tags in the current window\n        tags = self.get_tags_in_range(0,\
+      \ 0, len(in0))\n        for tag in tags:\n            if tag.key == pmt.intern(\"\
+      preamble\"):\n                self.capturing = True\n                self.buffer\
+      \ = []\n\n        # Process samples\n        for i, val in enumerate(in0):\n\
+      \            if self.capturing:\n                self.buffer.append(val)\n \
+      \               if len(self.buffer) == 112:  # ADS-B message length\n      \
+      \              bits_str = ''.join(str(int(b)) for b in self.buffer)\n      \
+      \              print(f\"ADS-B: {bits_str}\")\n                    self.capturing\
+      \ = False\n                    self.buffer = []\n            out[i] = val\n\n\
+      \        return len(out)"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('ADSB Bit Extractor', 'adsb_extractor', [], [('0', 'byte', 1)], [('0',
+      'byte', 1)], '', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1072, 32.0]
+    rotation: 0
+    state: disabled
+- name: epy_block_2
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
+      \ GRC will instantiate the first class it finds\nto get ports and parameters\
+      \ of your block. The arguments to __init__  will\nbe the parameters. All of\
+      \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
+      from gnuradio import gr\n\npreamble_found = False\n\nclass blk(gr.sync_block):\
+      \  # other base classes are basic_block, decim_block, interp_block\n    \"\"\
+      \"Post processing of collected data\"\"\"\n\n    def __init__(self, file=''):\
+      \  # only default arguments here\n        \"\"\"arguments to this function show\
+      \ up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n         \
+      \   self,\n            name='Binary File Processor',   # will show up in GRC\n\
+      \            in_sig=[np.float32],\n            out_sig=[np.float32]\n      \
+      \  )\n        # if an attribute with the same name as a parameter is found,\n\
+      \        # a callback is registered (properties work, too).\n        self.filename\
+      \ = file\n    #1010001010000000\n    def find_sequence_in_binary_file(filename,\
+      \ sequence=\"1010001010000000\"):\n        \"\"\"Check a binary file for the\
+      \ presence of a specific bit sequence.\n        \n        Args:\n          \
+      \  filename (str): Path to the binary file to check\n            sequence (str):\
+      \ The bit sequence to search for (e.g., \"1010001010000000\")\n        \n  \
+      \      Returns:\n            list: List of byte offsets where the sequence starts,\
+      \ or empty list if not found\n        \"\"\"\n        if not sequence or not\
+      \ all(c in '01' for c in sequence):\n            raise ValueError(\"Sequence\
+      \ must be a string of 0s and 1s (e.g., '10100010')\")\n\n        # Convert the\
+      \ bit sequence to bytes (pad to full bytes)\n        # e.g., \"1010001010000000\"\
+      \ \u2192 2 bytes\n        num_bytes = (len(sequence) + 7) // 8\n        # Pad\
+      \ with leading zeros if needed\n        padded_sequence = sequence.zfill(num_bytes\
+      \ * 8)\n        sequence_int = int(padded_sequence, 2)\n        sequence_bytes\
+      \ = sequence_int.to_bytes(num_bytes, byteorder='big')\n\n        # Also keep\
+      \ the original bit string for verification\n        sequence_bits = sequence\n\
+      \n        found_positions = []\n\n        try:\n            with open(filename,\
+      \ 'rb') as file:\n                chunk_size = 65536  # 64 KB chunks\n     \
+      \           buffer = b''\n                buffer_bits = \"\"  # Keep track of\
+      \ bits for overlap\n\n                while True:\n                    chunk\
+      \ = file.read(chunk_size)\n                    if not chunk:\n             \
+      \           break\n\n                    # Convert chunk to binary string (e.g.,\
+      \ b'\\x01\\x02' \u2192 \"0000000100000010\")\n                    chunk_bits\
+      \ = ''.join(format(byte, '08b') for byte in chunk)\n\n                    #\
+      \ Combine with previous buffer's bits (for overlap)\n                    combined_bits\
+      \ = buffer_bits + chunk_bits\n\n                    # Search for the sequence\
+      \ in the combined bits\n                    start = 0\n                    while\
+      \ True:\n                        pos = combined_bits.find(sequence_bits, start)\n\
+      \                        if pos == -1:\n                            break\n\
+      \                        # Convert bit position to byte position\n         \
+      \               byte_pos = (len(buffer) * 8 + pos) // 8\n                  \
+      \      found_positions.append(byte_pos)\n                        start = pos\
+      \ + 1  # Continue searching for overlapping matches\n                      \
+      \  preamble_found = True\n\n                    # Update buffer for next iteration\
+      \ (keep enough for overlap)\n                    buffer_bits = combined_bits[-(len(sequence_bits)\
+      \ - 1):]\n                    buffer = chunk  # Keep full chunk for byte position\
+      \ calculation\n\n            return found_positions\n\n        except FileNotFoundError:\n\
+      \            print(f\"Error: File '{filename}' not found.\")\n            return\
+      \ []\n        except Exception as e:\n            print(f\"Error reading file:\
+      \ {e}\")\n            return []\n    \n    # def find_sequence_in_binary_file(filename,\
+      \ sequence=\"1010001010000000\"):\n    #     \"\"\" Check a binary file for\
+      \ the presence of a specific bit sequence.\n        \n    #     Args:\n    #\
+      \         filename (str): Path to the binary file to check\n    #         sequence\
+      \ (str): The bit sequence to search for (default: \"10011010\")\n        \n\
+      \    #     Returns:\n    #         bool: True if sequence is found, False otherwise\n\
+      \    #     \"\"\"\n    #     global preamble_found\n\n    #     # Convert sequence\
+      \ to bytes for comparison\n    #     sequence_bytes = int(sequence, 2).to_bytes(1,\
+      \ byteorder='big')\n        \n    #     try:\n    #         with open(filename,\
+      \ 'rb') as file:\n    #             # Read the file in chunks to handle large\
+      \ files efficiently\n    #             chunk_size = 1024\n    #            \
+      \ buffer = b''\n                \n    #             while True:\n    #     \
+      \            chunk = file.read(chunk_size)\n    #                 if not chunk:\n\
+      \    #                     break\n                    \n    #              \
+      \   # Append new data to buffer\n    #                 buffer += chunk\n   \
+      \                 \n    #                 # Check for the sequence in the buffer\n\
+      \    #                 # We need to check overlapping sequences\n    #     \
+      \            for i in range(len(buffer) - len(sequence) + 1):\n    #       \
+      \              # Extract a byte from the buffer\n    #                     byte\
+      \ = buffer[i]\n    #                     # Check if the byte matches the sequence\n\
+      \    #                     if byte == sequence_bytes[0]:\n    #            \
+      \             # Verify the exact bit pattern\n    #                        \
+      \ # Convert byte to 8-bit binary string\n    #                         byte_bits\
+      \ = format(byte, '08b')\n    #                         # Check if the sequence\
+      \ matches the last 8 bits\n    #                         if byte_bits == sequence:\n\
+      \    #                             return preamble_found == True\n         \
+      \           \n    #                 # Keep only the overlapping part for next\
+      \ iteration\n    #                 # This ensures we don't miss sequences that\
+      \ span across chunks\n    #                 overlap = len(sequence) - 1\n  \
+      \  #                 if len(buffer) > overlap:\n    #                     buffer\
+      \ = buffer[-overlap:]\n                \n    #             return False\n  \
+      \              \n    #     except FileNotFoundError:\n    #         print(f\"\
+      Error: File '{filename}' not found.\")\n    #         return False\n    #  \
+      \   except Exception as e:\n    #         print(f\"Error reading file: {e}\"\
+      )\n    #         return False\n    \n    def work(self, input_items, output_items):\n\
+      \        \"\"\"example: multiply with constant\"\"\"\n        global preamble_found\n\
+      \        output_items[0][:] = input_items[0]\n        \n        # search for\
+      \ preamble 10011010\n        if preamble_found:\n            print(\"Sequence\
+      \ '10011010' found in the file!\")\n        # else:\n        #     print(\"\
+      Sequence '10011010' not found in the file.\")\n        \n        return len(output_items[0])\n\
+      \    \n\n# if preamble found - save next 112 bits\n# convert to hex\n# save\
+      \ as a message\n\n# import pyModeS\n\n# global msg_hex\n\n# def extract_adsb_message(bits,\
+      \ start_index, preamble_found,msg):\n#     \"\"\"\n#     Extract the 112 bits\
+      \ immediately following a detected preamble.\n\n#     Parameters:\n#       \
+      \  bits (str): Binary string containing 0s and 1s.\n#         start_index (int):\
+      \ Index immediately after the preamble.\n#         preamble_found (bool): True\
+      \ if a valid preamble was detected.\n\n#     Returns:\n#         str or None:\
+      \ 112-bit ADS-B message, or None if unavailable.\n#     \"\"\"\n#     if preamble_found\
+      \ and start_index + 112 <= len(bits):\n#         message = bits[start_index:start_index\
+      \ + 112]\n#         msg_hex = format(int(message, 2), \"028X\")\n#         return\
+      \ msg_hex\n\n#     return None\n\n# result = pyModeS.decode(msg_hex)\n# print(result)\n\
+      # # {\n# #     'df': 17,\n# #     'icao': '406B90',\n# #     'crc_valid': True,\n\
+      # #     'typecode': 4,\n# #     'bds': '0,8',\n# #     'callsign': 'EZY85MH',\n\
+      # #     'category': 0,\n# #     'wake_vortex': 'No category information',\n\
+      # # }\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n    # Python code to convert\
+      \ binary number\n    # into hexadecimal number\n\n    # function to convert\n\
+      \    # binary to hexadecimal\n\n    # def binToHexa(n):\n    #     bnum = int(n)\n\
+      \    #     temp = 0\n    #     mul = 1\n        \n    #     # counter to check\
+      \ group of 4\n    #     count = 1\n        \n    #     # char array to store\
+      \ hexadecimal number\n    #     hexaDeciNum = ['0'] * 100\n        \n    # \
+      \    # counter for hexadecimal number array\n    #     i = 0\n    #     while\
+      \ bnum != 0:\n    #         rem = bnum % 10\n    #         temp = temp + (rem*mul)\n\
+      \            \n    #         # check if group of 4 completed\n    #        \
+      \ if count % 4 == 0:\n            \n    #             # check if temp < 10\n\
+      \    #             if temp < 10:\n    #                 hexaDeciNum[i] = chr(temp+48)\n\
+      \    #             else:\n    #                 hexaDeciNum[i] = chr(temp+55)\n\
+      \    #             mul = 1\n    #             temp = 0\n    #             count\
+      \ = 1\n    #             i = i+1\n                \n    #         # group of\
+      \ 4 is not completed\n    #         else:\n    #             mul = mul*2\n \
+      \   #             count = count+1\n    #         bnum = int(bnum/10)\n     \
+      \       \n    #     # check if at end the group of 4 is not\n    #     # completed\n\
+      \    #     if count != 1:\n    #         hexaDeciNum[i] = chr(temp+48)\n   \
+      \         \n    #     # check at end the group of 4 is completed\n    #    \
+      \ if count == 1:\n    #         i = i-1\n            \n    #     # printing\
+      \ hexadecimal number\n    #     # array in reverse order\n    #     print(\"\
+      \\n Hexadecimal equivalent of {}:  \".format(n), end=\"\")\n    #     while\
+      \ i >= 0:\n    #         print(end=hexaDeciNum[i])\n    #         i = i-1\n"
+    affinity: ''
+    alias: ''
+    comment: ''
+    file: '''/home/bri/workspace/mode_s_decode/controlpathsdotcom/raw_adsb_files/adsb_raw_4000000Hz_1783773546.real_float'''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('Binary File Processor', 'blk', [('file', "''")], [('0', 'float',
+      1)], [('0', 'float', 1)], 'Post processing of collected data', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [496, 744.0]
+    rotation: 0
+    state: disabled
+- name: epy_block_3
+  id: epy_block
+  parameters:
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    def __init__(self):\n        gr.sync_block.__init__(\n            self,\n\
+      \            name=\"ADS-B Detector\",\n            in_sig=[np.float32],\n  \
+      \          out_sig=[np.float32]\n        )\n\n        # Keep enough history\
+      \ so packets spanning buffers aren't missed\n        self.history = np.zeros(512,\
+      \ dtype=np.float32)\n\n        # Prevent duplicate prints\n        self.last_detection\
+      \ = -100000\n\n    ####################################################################\n\
+      \    # Detect one ADS-B preamble (32 samples @ 4 MHz)\n    ####################################################################\n\
+      \    def is_preamble(self, w):\n\n        if len(w) != 32:\n            return\
+      \ False\n\n        pulse = np.mean(np.concatenate((\n            w[0:2],\n \
+      \           w[4:6],\n            w[14:16],\n            w[18:20]\n        )))\n\
+      \n        gap = np.mean(np.concatenate((\n            w[2:4],\n            w[6:14],\n\
+      \            w[16:18],\n            w[20:32]\n        )))\n\n        if pulse\
+      \ < 0.02:\n            return False\n\n        if pulse < 3 * gap:\n       \
+      \     return False\n\n        return True\n\n    ####################################################################\n\
+      \    # Search an entire buffer\n    ####################################################################\n\
+      \    def find_preambles(self, samples):\n\n        detections = []\n\n     \
+      \   for i in range(len(samples) - 32):\n\n            if self.is_preamble(samples[i:i+32]):\n\
+      \                detections.append(i)\n\n        return detections\n\n    ####################################################################\n\
+      \    # GNU Radio work()\n    ####################################################################\n\
+      \    def work(self, input_items, output_items):\n\n        x = input_items[0]\n\
+      \        y = output_items[0]\n\n        y[:] = x\n\n        samples = np.concatenate((self.history,\
+      \ x))\n\n        detections = self.find_preambles(samples)\n\n        for d\
+      \ in detections:\n\n            if d - self.last_detection > 64:\n\n       \
+      \         print(\"Detection:\", d)\n                print(np.round(samples[d:d+40],\
+      \ 3))\n                print()\n\n                self.last_detection = d\n\n\
+      \        self.history = samples[-512:]\n\n        return len(y)"
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('ADS-B Detector', 'blk', [], [('0', 'float', 1)], [('0', 'float',
+      1)], '', [])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1248, 368.0]
+    rotation: 0
+    state: disabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '20000000'
+    bbdc: 'True'
+    buffer_size: '262144'
+    comment: ''
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: center_freq
+    fstop: '0'
+    gain1: '''manual'''
+    len_tag_key: packet_len
+    manual_gain1: '50'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: samp_rate
+    type: fc32
+    uri: ip:pluto.local
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [64, 156.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: from time import time
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 16.0]
+    rotation: 0
+    state: enabled
+- name: low_pass_filter_0
+  id: low_pass_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    beta: '2.5'
+    comment: ''
+    cutoff_freq: '1000000'
+    decim: '1'
+    gain: '1'
+    interp: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+    type: fir_filter_ccf
+    width: '200000'
+    win: window.WIN_KAISER
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [264, 396.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: center_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.1'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [296, 104.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_x_0_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: OOK Decoder
+    nconnections: '3'
+    size: '256'
+    srate: samp_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.02'
+    tr_mode: qtgui.TRIG_MODE_NORM
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '0.02'
+    ymin: '-0.00001'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1728, 232.0]
+    rotation: 0
+    state: disabled
+- name: qtgui_time_sink_x_0_0_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'False'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: OOK Decoder
+    nconnections: '1'
+    size: '256'
+    srate: samp_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.02'
+    tr_mode: qtgui.TRIG_MODE_NORM
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '0.02'
+    ymin: '-0.00001'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1184, 416.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: center_freq
+    fftsize: '2048'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '-20'
+    int_min: '-100'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_RECTANGULAR
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 240.0]
+    rotation: 0
+    state: disabled
+
+connections:
+- [blocks_complex_to_mag_0, '0', blocks_file_sink_0, '0']
+- [blocks_complex_to_mag_0, '0', blocks_float_to_char_0, '0']
+- [blocks_complex_to_mag_0, '0', blocks_threshold_ff_0, '0']
+- [blocks_complex_to_mag_0, '0', epy_block_3, '0']
+- [blocks_complex_to_mag_0, '0', qtgui_time_sink_x_0_0, '0']
+- [blocks_complex_to_mag_0, '0', qtgui_time_sink_x_0_0_0, '0']
+- [blocks_float_to_char_0, '0', blocks_file_sink_0, '0']
+- [blocks_null_source_0, '0', epy_block_2, '0']
+- [blocks_threshold_ff_0, '0', qtgui_time_sink_x_0_0, '1']
+- [epy_block_2, '0', blocks_null_sink_0, '0']
+- [epy_block_3, '0', qtgui_time_sink_x_0_0, '2']
+- [iio_pluto_source_0, '0', low_pass_filter_0, '0']
+- [iio_pluto_source_0, '0', qtgui_freq_sink_x_0, '0']
+- [iio_pluto_source_0, '0', qtgui_waterfall_sink_x_0, '0']
+- [low_pass_filter_0, '0', blocks_complex_to_mag_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.9.2
