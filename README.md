@@ -20,7 +20,22 @@ Get to know GNU Radio and signal processing.
 
 ## 🚀 Installation
 
-1. Clone the repo:
+1. Clone the repository:
+
    ```bash
    git clone https://github.com/LetMeSeeThatCode/adalmpluto_sdr.git
    cd adalmpluto_sdr
+   ```
+
+## ▶️ Running the Project
+
+1. Open `plutoSDR_adsb_msg_receiver.grc` in GNU Radio.
+
+2. Run the flowgraph to record ADS-B data.
+   - **Recommendation:** Stop the recording after about **10 seconds**, otherwise the generated files can become very large.
+
+3. Process the recorded data from the command line:
+
+   ```bash
+   python3 adsb_preamble_finder.py adsb_raw_4000000Hz_1783781677_mag_char --rate 4000000
+   ```
