@@ -37,5 +37,9 @@ Get to know GNU Radio and signal processing.
 3. Process the recorded data from the command line:
 
    ```bash
+   python3 adsb_preamble_finder.py file.bin --rate 4000000
+   ```
+To run example:
+   ```bash
    python3 adsb_preamble_finder.py adsb_raw_4000000Hz_1783781677_mag_char --rate 4000000
    ```
