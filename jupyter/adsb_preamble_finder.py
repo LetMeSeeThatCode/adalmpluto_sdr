@@ -1,39 +1,27 @@
-
-
 #!/usr/bin/env python3
 """
-adsb_preamble_finder.py
+adsb_preamble_finder.py - Claude AI
 
-Fast ADS-B (Mode S Extended Squitter, 1090 MHz) preamble detector for
-magnitude data captured from an ADALM-PLUTO SDR.
+- ADS-B (Mode S Extended Squitter, 1090 MHz) preamble detector for magnitude data captured from an ADALM-PLUTO SDR.
+- Original data collected at 4MHz to gaurantee pulse recognition.
+- ADS-B uses PPM
 
 ADS-B preamble structure
 -------------------------
-The preamble is 8 microseconds long and contains four short pulses at:
-    0.0 us, 1.0 us, 3.5 us, 4.5 us
-All other time slots in the 8 us window should be quiet (low amplitude).
-This script scans the magnitude waveform for that pulse pattern using a
-vectorized numpy comparison, so it stays fast even on long captures.
+    8 microseconds and (four due to 4MHz sampling rate) pulses at: 0.0 us, 1.0 us, 3.5 us, 4.5 us
+    This script scans the magnitude waveform for that pulse pattern using a vectorized numpy comparison.
 
-Assumptions
------------
-* Input file is raw magnitude samples (not complex IQ) as a flat binary
-  array of a fixed dtype (default: float32).
-  - If you actually captured raw IQ from the Pluto, convert it to
-    magnitude first, e.g.:
-        iq = np.fromfile(path, dtype=np.complex64)
-        mag = np.abs(iq).astype(np.float32)
-        mag.tofile("mag.bin")
-* Sample rate should be a Pluto capture rate that is a "nice" multiple of
-  2 MHz for clean sample alignment (2 MHz, 4 MHz, 8 MHz, etc. all work
-  well). Pass --rate to match your capture.
+Reccomendations
+---------------
+    Sample rate should be a multiple of 2 MHz for clean sample alignment.
+    Pass --rate to match your capture.
 
 Usage
 -----
-    python3 adsb_preamble_finder.py /home/bri/workspace/mode_s_decode/controlpathsdotcom/adalmpluto_sdr/adsb_raw_4000000Hz_1783781677_mag_char --rate 4000000
+    python3 adsb_preamble_finder.py adsb_raw_4000000Hz_1783781677_mag_char --rate 4000000
 
-    python3 adsb_preamble_finder.py capture.bin --rate 2000000 \\
-        --dtype float32 --threshold 2.0 --max-hits 20
+    python3 adsb_preamble_finder.py capture.bin --rate 4000000 \\
+        --dtype float32 --threshold 2.0 
 """
 
 import argparse
@@ -113,8 +101,7 @@ def demod_mode_s(mag, start_idx, rate=2_000_000, max_bits=112):
     """
     Demodulate the Mode S message that follows a detected preamble.
 
-    Mode S uses PPM (pulse position modulation): each bit occupies 1us,
-    split into two 0.5us half-bit slots.
+    Mode S uses PPM (pulse position modulation): each bit occupies 1us, split into two 0.5us half-bit slots.
         bit = 1  ->  first half-bit HIGH, second half-bit LOW
         bit = 0  ->  first half-bit LOW,  second half-bit HIGH
     So each bit is decoded just by comparing the two half-bit samples.
@@ -152,11 +139,9 @@ def demod_mode_s(mag, start_idx, rate=2_000_000, max_bits=112):
     if len(bits) < 5:
         return None  # capture cut off before we could even read the DF
 
-    # DF (Downlink Format) is the first 5 bits and tells us whether this
-    # is a 56-bit "short" squitter or a 112-bit "long" squitter
     df = int("".join(map(str, bits[:5])), 2)
     length_bits = 112 if df >= 16 else 56
-    length_bits = min(length_bits, len(bits))  # don't exceed what we actually decoded
+    length_bits = min(length_bits, len(bits)) 
     bits = bits[:length_bits]
 
     # pack bits -> bytes -> hex string
@@ -165,9 +150,6 @@ def demod_mode_s(mag, start_idx, rate=2_000_000, max_bits=112):
     byte_vals = [
         int("".join(map(str, padded[b * 8:(b + 1) * 8])), 2) for b in range(nbytes)
     ]
-
-
-
     return {
         "bits": bits,
         "hex": "".join(f"{b:02X}" for b in byte_vals),
@@ -182,9 +164,7 @@ def mode_s_crc(bits):
 
     Parameters
     ----------
-    bits : list of 0/1 ints — the full message including its 24-bit CRC
-        field at the end (56 bits for a short squitter, 112 for a long
-        squitter — exactly what demod_mode_s()['bits'] gives you).
+    - Number of bits
 
     Returns
     -------
@@ -219,8 +199,6 @@ def main():
                      help="pulse-to-quiet amplitude ratio required (default: 2.0)")
     ap.add_argument("--min-amplitude", type=float, default=0.0,
                      help="absolute amplitude floor for pulses (default: 0, i.e. off)")
-    ap.add_argument("--max-hits", type=int, default=20,
-                     help="max number of hits to print (default: 20)")
     args = ap.parse_args()
 
     mag = np.fromfile(args.infile, dtype=np.dtype(args.dtype)).astype(np.float32)
@@ -236,14 +214,10 @@ def main():
         min_amplitude=args.min_amplitude,
     )
 
-    # a real preamble will trigger the sliding window a few samples in a
-    # row; collapse those into single detections spaced at least one
-    # preamble-length apart
     preamble_len = int(round(8 * args.rate / 1_000_000))
     hits = dedupe_hits(hits, min_spacing=preamble_len)
-
-    print(f"Found {len(hits)} candidate preamble(s).")
     n_valid = 0
+    
     for h in hits[:]:
         t_ms = h / args.rate * 1000
         msg = demod_mode_s(mag, h, rate=args.rate)
@@ -252,34 +226,16 @@ def main():
             continue
 
         checksum = mode_s_crc(msg["bits"])
-        # DF17/18 (ADS-B): valid message has checksum == 0.
-        # Other DFs (e.g. DF11 all-call, DF4/5/20/21 surveillance replies)
-        # XOR the CRC field with an address/parity, so a nonzero checksum
-        # there doesn't necessarily mean a bad message -- only DF17/18 get
-        # a hard pass/fail here.
-        if msg["df"] in (17, 18, 20):
-            if msg["df"] in (17, 18):
-                valid = checksum == 0
-            result = decode(msg["hex"])
-            print(result)
-        else:
-            valid = None  # unknown / not checked for this DF
 
-        status = "OK " if valid else ("?  " if valid is None else "BAD")
+        #status = "OK " if valid else ("?  " if valid is None else "BAD")
         if valid:
             n_valid += 1
 
-        # print(f"  sample {h:>10}  |  t = {t_ms:.4f} ms  |  DF={msg['df']:>2}  "
-        #       f"len={msg['length_bits']:>3} bits  |  CRC={status}  |  {msg['hex']}")
         result = decode(msg["hex"])
         flight_dict.append(result)
     
     df = pd.DataFrame(flight_dict)
     df.to_csv(f'ADS_B_data_{filename}.csv')
-
-    # if len(hits) > args.max_hits:
-    #     print(f"  ... and {len(hits) - args.max_hits} more")
-    # print(f"{n_valid} message(s) passed CRC (DF17/18 only).")
 
 
 if __name__ == "__main__":
